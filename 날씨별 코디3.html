@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>장소/날씨별 코디 추천</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --danger: #ef4444;
+      --good: #10b981;
+      --shadow: 0 16px 40px rgba(2, 8, 23, 0.08);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #ffffff 0%, #edf4ff 100%);
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 34px;
+      line-height: 1.18;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.8;
+      max-width: 920px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+    }
+
+    .stack { display: grid; gap: 14px; }
+
+    .field { display: grid; gap: 8px; }
+
+    label {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      font-size: 15px;
+      outline: none;
+      background: white;
+    }
+
+    input[type="range"] { width: 100%; }
+
+    .value {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 16px;
+      padding: 13px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    .primary { background: var(--accent); color: white; }
+    .soft { background: var(--accent-soft); color: #1d4ed8; }
+    .ghost { background: #f3f4f6; color: #374151; }
+
+    #map {
+      width: 100%;
+      height: 560px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      font-size: 13px;
+      color: #334155;
+    }
+
+    .weather-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .weather-box {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .weather-box .k {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .weather-box .v {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 800;
+      margin: 18px 0 10px;
+    }
+
+    .outfit-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .outfit-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    .outfit-item .left {
+      display: grid;
+      gap: 4px;
+    }
+
+    .outfit-item .name {
+      font-weight: 700;
+    }
+
+    .outfit-item .desc {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .score {
+      min-width: 64px;
+      text-align: center;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      font-weight: 800;
+    }
+
+    .explain {
+      margin-top: 12px;
+      padding: 16px;
+      line-height: 1.75;
+      border-radius: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      color: #334155;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #fafcff;
+      color: #334155;
+      font-size: 14px;
+    }
+
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+      #map { height: 420px; }
+    }
+
+    @media (max-width: 700px) {
+      .row, .btn-row, .weather-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>장소/날씨별 코디 추천</h1>
+      <p>
+        지도에서 원하는 위치를 클릭하거나 도시명을 검색하면, 해당 좌표의 실시간/시간대별 날씨를 불러와 옷을 추천합니다.
+        다만 추천을 고정하지 않고, <strong>추위 민감도</strong>, <strong>비 대비 성향</strong>, <strong>바람 민감도</strong>, <strong>스타일 목적</strong>을 사용자가 직접 조절할 수 있게 만들었습니다.
+      </p>
+    </section>
+
+    <div class="layout">
+      <section class="card stack">
+        <div>
+          <h2>위치와 선호 설정</h2>
+          <div class="stack">
+            <div class="field">
+              <label for="locationInput">도시명 검색</label>
+              <input id="locationInput" type="text" placeholder="예: Seoul, Busan, Tokyo, London" />
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="postalInput">우편번호 / ZIP 코드</label>
+                <input id="postalInput" type="text" placeholder="예: 04524, 100-0001, 10001" />
+              </div>
+              <div class="field">
+                <label for="countryInput">국가 코드</label>
+                <input id="countryInput" type="text" placeholder="예: KR, JP, US" value="KR" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="latInput">위도</label>
+                <input id="latInput" type="text" placeholder="예: 37.5665" />
+              </div>
+              <div class="field">
+                <label for="lonInput">경도</label>
+                <input id="lonInput" type="text" placeholder="예: 126.9780" />
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button class="primary" id="searchBtn">도시 검색</button>
+              <button class="soft" id="gpsBtn">내 위치 사용</button>
+              <button class="ghost" id="refreshBtn">날씨 새로고침</button>
+            </div>
+
+            <div class="btn-row">
+              <button class="soft" id="postalBtn">우편번호 검색</button>
+              <button class="soft" id="coordBtn">좌표로 이동</button>
+              <button class="ghost" id="seoulBtn">서울 예시</button>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="startTimeSelect">외출 시작 시각</label>
+                <select id="startTimeSelect">
+                  <option value="0">지금</option>
+                  <option value="1">1시간 뒤</option>
+                  <option value="3">3시간 뒤</option>
+                  <option value="6">6시간 뒤</option>
+                  <option value="12">12시간 뒤</option>
+                  <option value="24">24시간 뒤</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="endTimeSelect">외출 종료 시각</label>
+                <select id="endTimeSelect">
+                  <option value="3">3시간 뒤</option>
+                  <option value="6" selected>6시간 뒤</option>
+                  <option value="12">12시간 뒤</option>
+                  <option value="24">24시간 뒤</option>
+                  <option value="36">36시간 뒤</option>
+                  <option value="48">48시간 뒤</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="styleSelect">스타일 목적</label>
+                <select id="styleSelect">
+                  <option value="balanced">균형형</option>
+                  <option value="casual">캐주얼</option>
+                  <option value="commute">출근/등교</option>
+                  <option value="active">활동성 우선</option>
+                  <option value="minimal">최소 레이어</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="rangeStrategy">추천 기준</label>
+                <select id="rangeStrategy">
+                  <option value="balanced">평균 기준</option>
+                  <option value="cautious">보수적으로</option>
+                  <option value="light">가볍게</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label for="envSelect">활동 환경</label>
+                <select id="envSelect">
+                  <option value="outdoor">주로 실외</option>
+                  <option value="mixed">실내/실외 혼합</option>
+                  <option value="indoor">주로 실내</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="indoorTemp">실내 온도 <span class="value" id="indoorTempVal">24°C</span></label>
+                <input id="indoorTemp" type="range" min="16" max="30" step="1" value="24" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="coldSlider">추위 민감도 <span class="value" id="coldVal">보통</span></label>
+              <input id="coldSlider" type="range" min="-2" max="2" step="1" value="0" />
+            </div>
+
+            <div class="field">
+              <label for="rainSlider">비 대비 성향 <span class="value" id="rainVal">보통</span></label>
+              <input id="rainSlider" type="range" min="0" max="2" step="1" value="1" />
+            </div>
+
+            <div class="field">
+              <label for="windSlider">바람 민감도 <span class="value" id="windVal">보통</span></label>
+              <input id="windSlider" type="range" min="0" max="2" step="1" value="1" />
+            </div>
+          </div>
+        </div>
+
+        <div class="status" id="statusBox">지도에서 위치를 클릭하거나 도시명을 검색해 주세요.</div>
+
+        <div>
+          <div class="section-title">현재 선택 상태</div>
+          <div class="chips" id="activeChips">
+            <span class="chip">위치 미선택</span>
+          </div>
+        </div>
+
+        <div class="note">
+          이 페이지는 브라우저에서 공개 날씨 API를 호출합니다. 인터넷 연결이 필요하며, 추천 로직은 HTML 내부의 옷 데이터베이스와 규칙 기반 점수화로 동작합니다.
+        </div>
+      </section>
+
+      <section class="card">
+        <div id="map"></div>
+
+        <div id="weatherPanel" style="margin-top: 16px; display:none;">
+          <div class="section-title">선택 위치 날씨</div>
+          <div class="weather-grid">
+            <div class="weather-box"><div class="k">기온</div><div class="v" id="tempBox">-</div></div>
+            <div class="weather-box"><div class="k">체감온도</div><div class="v" id="feelBox">-</div></div>
+            <div class="weather-box"><div class="k">강수확률</div><div class="v" id="rainBox">-</div></div>
+            <div class="weather-box"><div class="k">풍속</div><div class="v" id="windBox">-</div></div>
+            <div class="weather-box"><div class="k">날씨</div><div class="v" id="codeBox">-</div></div>
+            <div class="weather-box"><div class="k">시간</div><div class="v" id="timeBox" style="font-size:15px; line-height:1.5;">-</div></div>
+          </div>
+
+          <div class="section-title">추천 옷차림</div>
+          <div class="outfit-list" id="outfitList"></div>
+          <div class="explain" id="explainBox"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const map = L.map('map').setView([37.5665, 126.9780], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker = null;
+    let selectedPoint = null;
+    let weatherSnapshot = null;
+
+    const locationInput = document.getElementById('locationInput');
+    const postalInput = document.getElementById('postalInput');
+    const countryInput = document.getElementById('countryInput');
+    const latInput = document.getElementById('latInput');
+    const lonInput = document.getElementById('lonInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const postalBtn = document.getElementById('postalBtn');
+    const coordBtn = document.getElementById('coordBtn');
+    const seoulBtn = document.getElementById('seoulBtn');
+    const gpsBtn = document.getElementById('gpsBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const startTimeSelect = document.getElementById('startTimeSelect');
+    const endTimeSelect = document.getElementById('endTimeSelect');
+    const styleSelect = document.getElementById('styleSelect');
+    const rangeStrategy = document.getElementById('rangeStrategy');
+    const coldSlider = document.getElementById('coldSlider');
+    const rainSlider = document.getElementById('rainSlider');
+    const windSlider = document.getElementById('windSlider');
+    const envSelect = document.getElementById('envSelect');
+    const indoorTemp = document.getElementById('indoorTemp');
+    const indoorTempVal = document.getElementById('indoorTempVal');
+    const coldVal = document.getElementById('coldVal');
+    const rainVal = document.getElementById('rainVal');
+    const windVal = document.getElementById('windVal');
+    const statusBox = document.getElementById('statusBox');
+    const activeChips = document.getElementById('activeChips');
+    const weatherPanel = document.getElementById('weatherPanel');
+    const outfitList = document.getElementById('outfitList');
+    const explainBox = document.getElementById('explainBox');
+
+    const weatherCodeMap = {
+      0: '맑음', 1: '대체로 맑음', 2: '부분적으로 흐림', 3: '흐림',
+      45: '안개', 48: '착빙 안개',
+      51: '약한 이슬비', 53: '이슬비', 55: '강한 이슬비',
+      61: '약한 비', 63: '비', 65: '강한 비',
+      71: '약한 눈', 73: '눈', 75: '강한 눈',
+      80: '약한 소나기', 81: '소나기', 82: '강한 소나기',
+      95: '뇌우', 96: '우박 가능 뇌우', 99: '강한 우박 뇌우'
+    };
+
+    const wardrobe = [
+      { name: '반팔 티셔츠', category: 'top', warmth: 1, rain: 0, wind: 0, styles: ['casual','active','balanced','minimal'], desc: '더운 날 기본 상의' },
+      { name: '얇은 셔츠/블라우스', category: 'top', warmth: 2, rain: 0, wind: 1, styles: ['commute','balanced','minimal'], desc: '실내외 온도 차 대응에 무난함' },
+      { name: '긴팔 티셔츠', category: 'top', warmth: 3, rain: 0, wind: 1, styles: ['casual','balanced','active'], desc: '선선한 날 가벼운 보온' },
+      { name: '니트/스웨터', category: 'top', warmth: 5, rain: 0, wind: 2, styles: ['commute','balanced','casual'], desc: '기온이 내려가면 활용도 높음' },
+      { name: '후드/맨투맨', category: 'outer', warmth: 4, rain: 0, wind: 1, styles: ['casual','active','balanced'], desc: '편안한 중간 레이어' },
+      { name: '가벼운 가디건', category: 'outer', warmth: 3, rain: 0, wind: 1, styles: ['commute','balanced','minimal'], desc: '실내외 온도차 대응용' },
+      { name: '바람막이', category: 'outer', warmth: 3, rain: 1, wind: 5, styles: ['active','casual','balanced'], desc: '바람이 강할 때 특히 유리함' },
+      { name: '트렌치코트', category: 'outer', warmth: 4, rain: 2, wind: 3, styles: ['commute','balanced'], desc: '선선하고 약간 젖을 수 있는 날' },
+      { name: '자켓/블레이저', category: 'outer', warmth: 4, rain: 0, wind: 2, styles: ['commute','balanced'], desc: '출근/등교용으로 안정적' },
+      { name: '패딩/두꺼운 코트', category: 'outer', warmth: 8, rain: 1, wind: 5, styles: ['commute','balanced','casual'], desc: '추운 날 핵심 보온' },
+      { name: '반바지', category: 'bottom', warmth: 0, rain: 0, wind: 0, styles: ['active','casual','minimal'], desc: '고온일 때 적합' },
+      { name: '얇은 긴바지', category: 'bottom', warmth: 2, rain: 0, wind: 1, styles: ['casual','balanced','commute','minimal'], desc: '대부분의 날씨에 무난함' },
+      { name: '슬랙스/치노', category: 'bottom', warmth: 3, rain: 0, wind: 1, styles: ['commute','balanced'], desc: '단정하면서 과하지 않음' },
+      { name: '기모 바지', category: 'bottom', warmth: 6, rain: 0, wind: 2, styles: ['casual','balanced','commute'], desc: '추운 날 하의 보온 보강' },
+      { name: '운동화', category: 'shoes', warmth: 1, rain: 0, wind: 0, styles: ['active','casual','balanced'], desc: '가장 범용적인 선택' },
+      { name: '로퍼/단화', category: 'shoes', warmth: 1, rain: 0, wind: 0, styles: ['commute','balanced','minimal'], desc: '단정한 스타일에 적합' },
+      { name: '방수 신발', category: 'shoes', warmth: 2, rain: 5, wind: 1, styles: ['commute','active','balanced'], desc: '비 오는 날 발 젖음 방지' },
+      { name: '우산', category: 'accessory', warmth: 0, rain: 6, wind: 0, styles: ['commute','casual','active','balanced','minimal'], desc: '강수확률이 높으면 우선순위 상승' },
+      { name: '머플러', category: 'accessory', warmth: 4, rain: 0, wind: 3, styles: ['commute','balanced','casual'], desc: '찬바람을 막는 데 효과적' },
+      { name: '얇은 겉옷 휴대', category: 'accessory', warmth: 3, rain: 0, wind: 1, styles: ['minimal','balanced','commute'], desc: '낮밤 기온차 대응용' },
+      { name: '모자/캡', category: 'accessory', warmth: 1, rain: 1, wind: 1, styles: ['casual','active','balanced'], desc: '햇빛이나 약한 비 대응용' }
+    ];
+
+    function setStatus(msg) {
+      statusBox.textContent = msg;
+    }
+
+    function sliderLabel(el, map) {
+      return map[Number(el.value)];
+    }
+
+    function updatePreferenceLabels() {
+      coldVal.textContent = sliderLabel(coldSlider, {
+        '-2': '더위 잘 탐', '-1': '약간 더위 탐', '0': '보통', '1': '약간 추위 탐', '2': '추위 많이 탐'
+      });
+      rainVal.textContent = sliderLabel(rainSlider, { '0': '가볍게 봄', '1': '보통', '2': '철저히 대비' });
+      windVal.textContent = sliderLabel(windSlider, { '0': '둔감', '1': '보통', '2': '민감' });
+      indoorTempVal.textContent = `${indoorTemp.value}°C`;
+      renderChips();
+      if (weatherSnapshot) recommendOutfit(weatherSnapshot);
+    }
+
+    function renderChips() {
+      const chips = [];
+      if (selectedPoint) chips.push(`<span class="chip">${selectedPoint.label || '선택 위치'}</span>`);
+      else chips.push(`<span class="chip">위치 미선택</span>`);
+      chips.push(`<span class="chip">추위 민감도: ${coldVal.textContent}</span>`);
+      chips.push(`<span class="chip">비 대비: ${rainVal.textContent}</span>`);
+      chips.push(`<span class="chip">바람 민감도: ${windVal.textContent}</span>`);
+      chips.push(`<span class="chip">스타일: ${styleSelect.options[styleSelect.selectedIndex].text}</span>`);
+      chips.push(`<span class="chip">환경: ${envSelect.options[envSelect.selectedIndex].text}</span>`);
+      chips.push(`<span class="chip">실내 온도: ${indoorTemp.value}°C</span>`);
+      chips.push(`<span class="chip">시간: ${startTimeSelect.options[startTimeSelect.selectedIndex].text} ~ ${endTimeSelect.options[endTimeSelect.selectedIndex].text}</span>`);
+      chips.push(`<span class="chip">기준: ${rangeStrategy.options[rangeStrategy.selectedIndex].text}</span>`);
+      activeChips.innerHTML = chips.join('');
+    }
+
+    function setMarker(lat, lon, label) {
+      if (marker) map.removeLayer(marker);
+      marker = L.marker([lat, lon]).addTo(map);
+      if (label) marker.bindPopup(label).openPopup();
+      map.setView([lat, lon], 10);
+
+      latInput.value = Number(lat).toFixed(4);
+      lonInput.value = Number(lon).toFixed(4);
+
+      selectedPoint = { lat, lon, label };
+      renderChips();
+    }
+
+    async function geocodeCity(query) {
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=ko&format=json`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('도시 검색 실패');
+      const data = await res.json();
+      if (!data.results || !data.results.length) throw new Error('검색 결과 없음');
+      return data.results[0];
+    }
+
+    async function geocodePostal(postal, country) {
+      const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(postal)}&countrycodes=${encodeURIComponent(country.toLowerCase())}&format=jsonv2&limit=1`;
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      if (!res.ok) throw new Error('우편번호 검색 실패');
+      const data = await res.json();
+      if (!data || !data.length) throw new Error('해당 우편번호 결과 없음');
+      return data[0];
+    }
+
+    async function fetchWeather(lat, lon) {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&current=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&timezone=auto&forecast_days=3`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('날씨 조회 실패');
+      return res.json();
+    }
+
+    function pickHourlyIndex(times, offsetHours) {
+      if (!times || !times.length) return 0;
+      const now = new Date();
+      const target = new Date(now.getTime() + offsetHours * 3600 * 1000);
+      let bestIdx = 0;
+      let bestDiff = Infinity;
+      times.forEach((t, i) => {
+        const diff = Math.abs(new Date(t).getTime() - target.getTime());
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIdx = i;
+        }
+      });
+      return bestIdx;
+    }
+
+    function summarizeRange(hourly, startOffset, endOffset) {
+      const startIdx = pickHourlyIndex(hourly.time, startOffset);
+      const endIdx = pickHourlyIndex(hourly.time, endOffset);
+      const from = Math.min(startIdx, endIdx);
+      const to = Math.max(startIdx, endIdx);
+
+      const temps = hourly.temperature_2m.slice(from, to + 1);
+      const feels = hourly.apparent_temperature.slice(from, to + 1);
+      const rains = hourly.precipitation_probability.slice(from, to + 1).map(v => v ?? 0);
+      const winds = hourly.wind_speed_10m.slice(from, to + 1);
+      const codes = hourly.weather_code.slice(from, to + 1);
+      const times = hourly.time.slice(from, to + 1);
+
+      const avg = arr => arr.reduce((a,b) => a+b, 0) / arr.length;
+      return {
+        startIdx,
+        endIdx,
+        from,
+        to,
+        minTemp: Math.min(...temps),
+        maxTemp: Math.max(...temps),
+        minFeel: Math.min(...feels),
+        maxFeel: Math.max(...feels),
+        avgFeel: avg(feels),
+        maxRainProb: Math.max(...rains),
+        avgRainProb: avg(rains),
+        maxWind: Math.max(...winds),
+        avgWind: avg(winds),
+        dominantCode: codes[Math.floor(codes.length / 2)],
+        timeText: `${times[0]} ~ ${times[times.length - 1]}`,
+        startTimeText: times[0],
+        endTimeText: times[times.length - 1]
+      };
+    }
+
+    function weatherLabel(code) {
+      return weatherCodeMap[code] || `코드 ${code}`;
+    }
+
+    function showWeather(snapshot) {
+      weatherPanel.style.display = 'block';
+      document.getElementById('tempBox').textContent = `${Math.round(snapshot.minTemp)}~${Math.round(snapshot.maxTemp)}°C`;
+      document.getElementById('feelBox').textContent = `${Math.round(snapshot.minFeel)}~${Math.round(snapshot.maxFeel)}°C`;
+      document.getElementById('rainBox').textContent = `${Math.round(snapshot.maxRainProb)}%`;
+      document.getElementById('windBox').textContent = `${Math.round(snapshot.maxWind)} km/h`;
+      document.getElementById('codeBox').textContent = weatherLabel(snapshot.dominantCode);
+      document.getElementById('timeBox').textContent = snapshot.timeText;
+    }
+
+    function computeNeed(snapshot) {
+      const coldPref = Number(coldSlider.value);
+      const rainPref = Number(rainSlider.value);
+      const windPref = Number(windSlider.value);
+      const env = envSelect.value;
+      const indoor = Number(indoorTemp.value);
+      const strategy = rangeStrategy.value;
+
+      let outdoorFeel;
+      if (strategy === 'cautious') outdoorFeel = snapshot.minFeel;
+      else if (strategy === 'light') outdoorFeel = snapshot.maxFeel;
+      else outdoorFeel = snapshot.avgFeel;
+
+      let effectiveFeel = outdoorFeel;
+      if (env === 'indoor') {
+        effectiveFeel = indoor;
+      } else if (env === 'mixed') {
+        effectiveFeel = outdoorFeel * 0.55 + indoor * 0.45;
+      }
+
+      let thermalNeed = 0;
+      if (effectiveFeel >= 28) thermalNeed = 0;
+      else if (effectiveFeel >= 23) thermalNeed = 1;
+      else if (effectiveFeel >= 19) thermalNeed = 2;
+      else if (effectiveFeel >= 14) thermalNeed = 3;
+      else if (effectiveFeel >= 9) thermalNeed = 4;
+      else if (effectiveFeel >= 4) thermalNeed = 6;
+      else thermalNeed = 8;
+
+      thermalNeed += coldPref;
+
+      if (env !== 'indoor') {
+        if (snapshot.maxWind >= 22) thermalNeed += windPref;
+        if (snapshot.maxWind >= 35) thermalNeed += 1;
+      }
+
+      let rainNeed = 0;
+      if (env !== 'indoor') {
+        if (snapshot.maxRainProb >= 70) rainNeed = 5;
+        else if (snapshot.maxRainProb >= 45) rainNeed = 3;
+        else if (snapshot.maxRainProb >= 25) rainNeed = 1;
+        rainNeed += rainPref;
+      }
+
+      let windNeed = 0;
+      if (env !== 'indoor') {
+        if (snapshot.maxWind >= 35) windNeed = 5;
+        else if (snapshot.maxWind >= 22) windNeed = 3;
+        else if (snapshot.maxWind >= 12) windNeed = 1;
+        windNeed += windPref;
+      }
+
+      return { thermalNeed, rainNeed, windNeed, effectiveFeel, env, indoor, outdoorFeel, strategy };
+    }
+
+    function styleBoost(item, style) {
+      return item.styles.includes(style) ? 2.2 : (style === 'balanced' && item.styles.includes('balanced') ? 1.8 : 0);
+    }
+
+    function recommendOutfit(snapshot) {
+      const style = styleSelect.value;
+      const { thermalNeed, rainNeed, windNeed, effectiveFeel, env, indoor } = computeNeed(snapshot);
+
+      const scored = wardrobe.map(item => {
+        let score = 0;
+        score += 8 - Math.abs(item.warmth - thermalNeed);
+        score += 4 - Math.abs(item.rain - rainNeed);
+        score += 4 - Math.abs(item.wind - windNeed);
+        score += styleBoost(item, style);
+
+        if (style === 'minimal' && ['outer','accessory'].includes(item.category)) score -= 0.8;
+        if (style === 'commute' && item.name === '반바지') score -= 4;
+        if (env !== 'indoor' && snapshot.maxRainProb >= 50 && item.name === '우산') score += 4;
+        if (env !== 'indoor' && snapshot.maxRainProb >= 50 && item.name === '방수 신발') score += 3;
+        if (effectiveFeel >= 26 && item.name === '패딩/두꺼운 코트') score -= 8;
+        if (effectiveFeel <= 5 && item.name === '반팔 티셔츠') score -= 6;
+        if (env !== 'indoor' && snapshot.maxWind >= 22 && item.name === '바람막이') score += 4;
+        if (env === 'indoor' && item.name === '우산') score -= 6;
+        if (env === 'indoor' && item.name === '방수 신발') score -= 4;
+        if (env === 'indoor' && item.name === '바람막이') score -= 3;
+
+        return { ...item, score };
+      });
+
+      const top = {
+        top: scored.filter(x => x.category === 'top').sort((a,b) => b.score - a.score)[0],
+        outer: scored.filter(x => x.category === 'outer').sort((a,b) => b.score - a.score)[0],
+        bottom: scored.filter(x => x.category === 'bottom').sort((a,b) => b.score - a.score)[0],
+        shoes: scored.filter(x => x.category === 'shoes').sort((a,b) => b.score - a.score)[0],
+        accessory: scored.filter(x => x.category === 'accessory').sort((a,b) => b.score - a.score)[0]
+      };
+
+      const picked = [top.top, top.outer, top.bottom, top.shoes, top.accessory].filter(Boolean);
+      outfitList.innerHTML = picked.map(item => `
+        <div class="outfit-item">
+          <div class="left">
+            <div class="name">${item.name}</div>
+            <div class="desc">${item.desc}</div>
+          </div>
+          <div class="score">${item.score.toFixed(1)}</div>
+        </div>
+      `).join('');
+
+      explainBox.innerHTML = `
+        <strong>추천 해석</strong><br>
+        선택한 시간대의 실외 체감온도 범위는 <strong>${Math.round(snapshot.minFeel)}~${Math.round(snapshot.maxFeel)}°C</strong>, 최대 강수확률은 <strong>${Math.round(snapshot.maxRainProb)}%</strong>, 최대 풍속은 <strong>${Math.round(snapshot.maxWind)} km/h</strong>입니다.<br>
+        현재는 <strong>${envSelect.options[envSelect.selectedIndex].text}</strong> 모드이며, 실내 온도 <strong>${indoor}°C</strong>를 반영했습니다. 추천 기준은 <strong>${rangeStrategy.options[rangeStrategy.selectedIndex].text}</strong>이고, 계산에 사용한 대표 체감온도는 <strong>${Math.round(effectiveFeel)}°C</strong>입니다.<br>
+        그 결과 보온 필요도 <strong>${thermalNeed}</strong>, 비 대비 필요도 <strong>${rainNeed}</strong>, 바람 대비 필요도 <strong>${windNeed}</strong>로 판단했습니다.<br>
+        따라서 이번 추천은 <strong>${styleSelect.options[styleSelect.selectedIndex].text}</strong> 스타일을 유지하면서도 날씨 리스크를 줄이는 방향으로 조정되었습니다.
+      `;
+    }
+
+    async function updateWeatherForPoint(lat, lon, label = '선택 위치') {
+      try {
+        setStatus('날씨 데이터를 불러오는 중입니다...');
+        setMarker(lat, lon, label);
+        const data = await fetchWeather(lat, lon);
+        const startOffset = Number(startTimeSelect.value);
+        const endOffsetRaw = Number(endTimeSelect.value);
+        const endOffset = Math.max(endOffsetRaw, startOffset + 1);
+
+        const snapshot = summarizeRange(data.hourly, startOffset, endOffset);
+        weatherSnapshot = snapshot;
+        showWeather(snapshot);
+        recommendOutfit(snapshot);
+        setStatus(`날씨 조회 완료: ${label}`);
+      } catch (err) {
+        console.error(err);
+        setStatus(`오류: ${err.message}`);
+      }
+    }
+
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      updateWeatherForPoint(lat, lng, `위도 ${lat.toFixed(3)}, 경도 ${lng.toFixed(3)}`);
+    });
+
+    searchBtn.addEventListener('click', async () => {
+      const q = locationInput.value.trim();
+      if (!q) {
+        setStatus('도시명을 입력해 주세요.');
+        return;
+      }
+      try {
+        setStatus('도시를 검색하는 중입니다...');
+        const place = await geocodeCity(q);
+        const label = `${place.name}${place.admin1 ? ', ' + place.admin1 : ''}${place.country ? ', ' + place.country : ''}`;
+        latInput.value = Number(place.latitude).toFixed(4);
+        lonInput.value = Number(place.longitude).toFixed(4);
+        updateWeatherForPoint(place.latitude, place.longitude, label);
+      } catch (err) {
+        console.error(err);
+        setStatus(`오류: ${err.message}`);
+      }
+    });
+
+    postalBtn.addEventListener('click', async () => {
+      const postal = postalInput.value.trim();
+      const country = (countryInput.value.trim() || 'KR');
+      if (!postal) {
+        setStatus('우편번호를 입력해 주세요.');
+        return;
+      }
+      try {
+        setStatus('우편번호를 검색하는 중입니다...');
+        const place = await geocodePostal(postal, country);
+        const lat = Number(place.lat);
+        const lon = Number(place.lon);
+        const label = `${place.display_name}`;
+        latInput.value = lat.toFixed(4);
+        lonInput.value = lon.toFixed(4);
+        updateWeatherForPoint(lat, lon, label);
+      } catch (err) {
+        console.error(err);
+        setStatus(`오류: ${err.message}`);
+      }
+    });
+
+    coordBtn.addEventListener('click', () => {
+      const lat = Number(latInput.value.trim());
+      const lon = Number(lonInput.value.trim());
+      if (Number.isNaN(lat) || Number.isNaN(lon)) {
+        setStatus('올바른 위도와 경도를 입력해 주세요.');
+        return;
+      }
+      updateWeatherForPoint(lat, lon, `직접 입력 좌표 (${lat.toFixed(3)}, ${lon.toFixed(3)})`);
+    });
+
+    seoulBtn.addEventListener('click', () => {
+      latInput.value = '37.5665';
+      lonInput.value = '126.9780';
+      locationInput.value = 'Seoul';
+      updateWeatherForPoint(37.5665, 126.9780, 'Seoul, KR');
+    });
+
+    locationInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchBtn.click();
+    });
+
+    postalInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') postalBtn.click();
+    });
+
+    latInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') coordBtn.click();
+    });
+
+    lonInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') coordBtn.click();
+    });
+
+    gpsBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        setStatus('이 브라우저에서는 위치 기능을 사용할 수 없습니다.');
+        return;
+      }
+      setStatus('현재 위치를 확인하는 중입니다...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          updateWeatherForPoint(pos.coords.latitude, pos.coords.longitude, '내 위치');
+        },
+        (err) => {
+          setStatus(`위치 권한 또는 조회 오류: ${err.message}`);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+
+    refreshBtn.addEventListener('click', () => {
+      if (!selectedPoint) {
+        setStatus('먼저 위치를 선택해 주세요.');
+        return;
+      }
+      updateWeatherForPoint(selectedPoint.lat, selectedPoint.lon, selectedPoint.label);
+    });
+
+    [startTimeSelect, endTimeSelect, styleSelect, rangeStrategy, coldSlider, rainSlider, windSlider, envSelect, indoorTemp].forEach(el => {
+      el.addEventListener('input', () => {
+        updatePreferenceLabels();
+        if (selectedPoint) updateWeatherForPoint(selectedPoint.lat, selectedPoint.lon, selectedPoint.label);
+      });
+      el.addEventListener('change', () => {
+        updatePreferenceLabels();
+        if (selectedPoint) updateWeatherForPoint(selectedPoint.lat, selectedPoint.lon, selectedPoint.label);
+      });
+    });
+
+    updatePreferenceLabels();
+    renderChips();
+  </script>
+</body>
+</html>
