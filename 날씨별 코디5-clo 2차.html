@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>장소/날씨별 코디 추천</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root { --bg:#f6f8fc; --card:#fff; --text:#172033; --muted:#667085; --line:#e4e7ec; --accent:#2563eb; --accent-soft:#eff6ff; --shadow:0 16px 40px rgba(2,8,23,.08); --radius:24px; --good:#10b981; --warn:#f59e0b; --soft-gray:#f8fafc; }
+    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",Arial,sans-serif;background:linear-gradient(180deg,#f8fbff 0%,var(--bg) 100%);color:var(--text)}
+    .wrap{max-width:1480px;margin:0 auto;padding:24px}.hero{background:linear-gradient(135deg,#fff 0%,#edf4ff 100%);border:1px solid var(--line);border-radius:30px;box-shadow:var(--shadow);padding:28px;margin-bottom:20px}
+    .hero h1{margin:0 0 10px;font-size:34px;line-height:1.18}.hero p{margin:0;color:var(--muted);line-height:1.8;max-width:980px}
+    .layout{display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+    .card h2{margin:0 0 14px;font-size:20px}.stack{display:grid;gap:14px}.field{display:grid;gap:8px} label{font-size:14px;font-weight:700}
+    input[type="text"],select{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:16px;font-size:15px;outline:none;background:#fff} input[type="range"]{width:100%}
+    .value{font-size:13px;color:var(--muted)} .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    button{border:none;border-radius:16px;padding:13px 14px;font-weight:800;cursor:pointer;transition:transform .15s ease,opacity .15s ease,background-color .15s ease} button:hover{transform:translateY(-1px)}
+    .primary{background:var(--accent);color:#fff}.soft{background:var(--accent-soft);color:#1d4ed8}.ghost{background:#f3f4f6;color:#374151}
+    #map{width:100%;height:560px;border-radius:22px;overflow:hidden;border:1px solid var(--line)}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{padding:8px 12px;border-radius:999px;background:#f8fafc;border:1px solid var(--line);font-size:13px;color:#334155}
+    .section-title{font-size:17px;font-weight:800;margin:18px 0 10px}
+    .weather-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}.weather-box{padding:14px;border-radius:18px;border:1px solid var(--line);background:#fbfdff}
+    .weather-box .k{color:var(--muted);font-size:12px;margin-bottom:6px}.weather-box .v{font-size:22px;font-weight:800}
+    .status{padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:#fafcff;color:#334155;font-size:14px}
+    .recommend-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;margin-top:14px}.panel-soft{border:1px solid var(--line);border-radius:20px;background:#fbfdff;padding:16px}
+    .outfit-stack{display:grid;gap:10px}.outfit-item{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:13px 14px;border:1px solid var(--line);border-radius:16px;background:#fff}
+    .outfit-item .left{display:grid;gap:6px;min-width:0}.badge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#f8fafc;font-size:12px;color:#334155;font-weight:700;width:fit-content}
+    .reason-badges{display:flex;flex-wrap:wrap;gap:6px}.reason-badge{padding:5px 9px;border-radius:999px;font-size:11px;border:1px solid #dbe5f1;background:#f8fbff;color:#355070;font-weight:700}
+    .name{font-size:16px;font-weight:800}.desc{color:var(--muted);font-size:13px;line-height:1.5}.score{min-width:78px;text-align:center;padding:8px 10px;border-radius:999px;background:#f8fafc;border:1px solid var(--line);font-weight:800}
+    .rationale{line-height:1.8;color:#334155;font-size:14px}.mini-list{display:grid;gap:10px}.mini-item{border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff}
+    .mini-item .t{font-size:13px;color:var(--muted);margin-bottom:4px}.mini-item .v{font-weight:800;font-size:15px}.helper-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .legend{display:grid;gap:8px;font-size:13px;color:var(--muted);margin-top:8px}.feedback-wrap{display:grid;gap:10px}.feedback-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .feedback-btn{background:#fff;color:#334155;border:1px solid var(--line)}.feedback-btn.active{background:var(--accent-soft);color:#1d4ed8;border-color:#cfe0ff}.feedback-note{font-size:13px;color:var(--muted);line-height:1.6}
+    @media (max-width:1180px){.layout{grid-template-columns:1fr}#map{height:420px}.recommend-grid{grid-template-columns:1fr}} @media (max-width:720px){.row,.btn-row,.weather-grid,.helper-grid,.feedback-buttons{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>장소/날씨별 코디 추천</h1>
+      <p>지도에서 원하는 위치를 클릭하거나 도시명·좌표로 위치를 선택하면, 해당 시간대의 날씨를 불러와 <strong>clo(의복 보온성) 기반</strong>으로 코디를 추천합니다. 단순히 임의 점수를 매기는 대신, <strong>보온 필요량 + 바람/비 대응 + 한국에서 자주 입는 옷 스타일</strong>을 함께 반영합니다.</p>
+    </section>
+    <div class="layout">
+      <section class="card stack">
+        <div>
+          <h2>위치와 선호 설정</h2>
+          <div class="stack">
+            <div class="field"><label for="locationInput">도시명 검색</label><input id="locationInput" type="text" placeholder="예: Seoul, Busan, Tokyo, London" /></div>
+            <div class="row">
+              <div class="field"><label for="postalInput">우편번호 / ZIP 코드</label><input id="postalInput" type="text" placeholder="예: 04524, 100-0001, 10001" /></div>
+              <div class="field"><label for="countryInput">국가 코드</label><input id="countryInput" type="text" placeholder="예: KR, JP, US" value="KR" /></div>
+            </div>
+            <div class="row">
+              <div class="field"><label for="latInput">위도</label><input id="latInput" type="text" placeholder="예: 37.5665" /></div>
+              <div class="field"><label for="lonInput">경도</label><input id="lonInput" type="text" placeholder="예: 126.9780" /></div>
+            </div>
+            <div class="btn-row">
+              <button class="primary" id="searchBtn">도시 검색</button><button class="soft" id="gpsBtn">내 위치 사용</button><button class="ghost" id="refreshBtn">날씨 새로고침</button>
+            </div>
+            <div class="btn-row">
+              <button class="soft" id="postalBtn">우편번호 검색</button><button class="soft" id="coordBtn">좌표로 이동</button><button class="ghost" id="seoulBtn">서울 예시</button>
+            </div>
+            <div class="row">
+              <div class="field"><label for="startTimeSelect">외출 시작 시각</label>
+                <select id="startTimeSelect"><option value="0">지금</option><option value="1">1시간 뒤</option><option value="3">3시간 뒤</option><option value="6">6시간 뒤</option><option value="12">12시간 뒤</option><option value="24">24시간 뒤</option></select>
+              </div>
+              <div class="field"><label for="endTimeSelect">외출 종료 시각</label>
+                <select id="endTimeSelect"><option value="3">3시간 뒤</option><option value="6" selected>6시간 뒤</option><option value="12">12시간 뒤</option><option value="24">24시간 뒤</option><option value="36">36시간 뒤</option><option value="48">48시간 뒤</option></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field"><label for="moodSelect">오늘 느낌</label>
+                <select id="moodSelect"><option value="polished">깔끔하게</option><option value="comfy">편하게</option><option value="kkuan">꾸안꾸</option><option value="practical">최대한 실용적으로</option><option value="light">최대한 가볍게</option></select>
+              </div>
+              <div class="field"><label for="rangeStrategy">추천 기준</label>
+                <select id="rangeStrategy"><option value="balanced">평균 기준</option><option value="cautious">보수적으로</option><option value="light">가볍게</option></select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="field"><label for="envSelect">활동 환경</label>
+                <select id="envSelect"><option value="outdoor">주로 실외</option><option value="mixed">실내/실외 혼합</option><option value="indoor">주로 실내</option></select>
+              </div>
+              <div class="field"><label for="indoorTemp">실내 온도 <span class="value" id="indoorTempVal">24°C</span></label><input id="indoorTemp" type="range" min="16" max="30" step="1" value="24" /></div>
+            </div>
+            <div class="field"><label for="coldSlider">추위 민감도 <span class="value" id="coldVal">보통</span></label><input id="coldSlider" type="range" min="-2" max="2" step="1" value="0" /></div>
+            <div class="field"><label for="rainSlider">비 대비 성향 <span class="value" id="rainVal">보통</span></label><input id="rainSlider" type="range" min="0" max="2" step="1" value="1" /></div>
+            <div class="field"><label for="windSlider">바람 민감도 <span class="value" id="windVal">보통</span></label><input id="windSlider" type="range" min="0" max="2" step="1" value="1" /></div>
+            <div class="field"><label for="fashionSlider">스타일 중시도 <span class="value" id="fashionVal">보통</span></label><input id="fashionSlider" type="range" min="0" max="2" step="1" value="1" /></div>
+          </div>
+        </div>
+
+        <div class="status" id="statusBox">지도에서 위치를 클릭하거나 도시명을 검색해 주세요.</div>
+
+        <div><div class="section-title">현재 선택 상태</div><div class="chips" id="activeChips"><span class="chip">위치 미선택</span></div></div>
+
+        <div><div class="section-title">추천 로직 요약</div><div class="legend">
+          <div>• 보온 기준은 clo 기반으로 계산합니다.</div>
+          <div>• 바람은 windproof, 비는 water_resistant 태그를 별도로 반영합니다.</div>
+          <div>• 하의도 청바지, 와이드 팬츠, 슬랙스, 조거 팬츠 등으로 더 현실적으로 추천합니다.</div>
+          <div>• 피드백 버튼을 누르면 다음 추천에 미세하게 반영됩니다.</div>
+        </div></div>
+      </section>
+
+      <section class="card">
+        <div id="map"></div>
+
+        <div id="weatherPanel" style="margin-top:16px; display:none;">
+          <div class="section-title">선택 위치 날씨</div>
+          <div class="weather-grid">
+            <div class="weather-box"><div class="k">기온</div><div class="v" id="tempBox">-</div></div>
+            <div class="weather-box"><div class="k">체감온도</div><div class="v" id="feelBox">-</div></div>
+            <div class="weather-box"><div class="k">강수확률</div><div class="v" id="rainBox">-</div></div>
+            <div class="weather-box"><div class="k">풍속</div><div class="v" id="windBox">-</div></div>
+            <div class="weather-box"><div class="k">날씨</div><div class="v" id="codeBox">-</div></div>
+            <div class="weather-box"><div class="k">시간</div><div class="v" id="timeBox" style="font-size:15px; line-height:1.5;">-</div></div>
+          </div>
+
+          <div class="recommend-grid">
+            <div class="panel-soft"><div class="section-title" style="margin-top:0;">추천 코디</div><div class="outfit-stack" id="outfitList"></div></div>
+            <div class="panel-soft"><div class="section-title" style="margin-top:0;">추천 해석</div><div class="mini-list">
+              <div class="helper-grid">
+                <div class="mini-item"><div class="t">필요 보온량</div><div class="v" id="neededCloBox">-</div></div>
+                <div class="mini-item"><div class="t">추천 총 보온량</div><div class="v" id="outfitCloBox">-</div></div>
+              </div>
+              <div class="helper-grid">
+                <div class="mini-item"><div class="t">비 대응 수준</div><div class="v" id="rainNeedBox">-</div></div>
+                <div class="mini-item"><div class="t">바람 대응 수준</div><div class="v" id="windNeedBox">-</div></div>
+              </div>
+              <div class="mini-item"><div class="t">추천 이유</div><div class="rationale" id="explainBox"></div></div>
+            </div></div>
+          </div>
+
+          <div class="panel-soft" style="margin-top:14px;"><div class="section-title" style="margin-top:0;">후보 카테고리</div><div class="chips" id="candidateChips"></div></div>
+
+          <div class="panel-soft" style="margin-top:14px;">
+            <div class="section-title" style="margin-top:0;">추천 피드백</div>
+            <div class="feedback-wrap">
+              <div class="feedback-buttons">
+                <button class="feedback-btn" id="goodBtn">딱 좋아요</button>
+                <button class="feedback-btn" id="coldBtn">조금 추웠어요</button>
+                <button class="feedback-btn" id="hotBtn">조금 더웠어요</button>
+              </div>
+              <div class="feedback-note" id="feedbackNote">피드백을 남기면 다음 추천에서 보온량이 조금씩 보정됩니다.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const map = L.map('map').setView([37.5665,126.9780],5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+let marker=null, selectedPoint=null, weatherSnapshot=null;
+const FEEDBACK_KEY='clo_outfit_feedback_bias', FEEDBACK_LABEL_KEY='clo_outfit_feedback_label';
+const locationInput=document.getElementById('locationInput'), postalInput=document.getElementById('postalInput'), countryInput=document.getElementById('countryInput'),
+latInput=document.getElementById('latInput'), lonInput=document.getElementById('lonInput'), searchBtn=document.getElementById('searchBtn'),
+postalBtn=document.getElementById('postalBtn'), coordBtn=document.getElementById('coordBtn'), seoulBtn=document.getElementById('seoulBtn'),
+gpsBtn=document.getElementById('gpsBtn'), refreshBtn=document.getElementById('refreshBtn'), startTimeSelect=document.getElementById('startTimeSelect'),
+endTimeSelect=document.getElementById('endTimeSelect'), moodSelect=document.getElementById('moodSelect'), rangeStrategy=document.getElementById('rangeStrategy'),
+coldSlider=document.getElementById('coldSlider'), rainSlider=document.getElementById('rainSlider'), windSlider=document.getElementById('windSlider'),
+envSelect=document.getElementById('envSelect'), indoorTemp=document.getElementById('indoorTemp'), fashionSlider=document.getElementById('fashionSlider');
+const indoorTempVal=document.getElementById('indoorTempVal'), coldVal=document.getElementById('coldVal'), rainVal=document.getElementById('rainVal'),
+windVal=document.getElementById('windVal'), fashionVal=document.getElementById('fashionVal'), statusBox=document.getElementById('statusBox'),
+activeChips=document.getElementById('activeChips'), weatherPanel=document.getElementById('weatherPanel'), outfitList=document.getElementById('outfitList'),
+explainBox=document.getElementById('explainBox'), candidateChips=document.getElementById('candidateChips'), goodBtn=document.getElementById('goodBtn'),
+coldBtnFeedback=document.getElementById('coldBtn'), hotBtn=document.getElementById('hotBtn'), feedbackNote=document.getElementById('feedbackNote');
+
+const weatherCodeMap={0:'맑음',1:'대체로 맑음',2:'부분적으로 흐림',3:'흐림',45:'안개',48:'착빙 안개',51:'약한 이슬비',53:'이슬비',55:'강한 이슬비',61:'약한 비',63:'비',65:'강한 비',71:'약한 눈',73:'눈',75:'강한 눈',80:'약한 소나기',81:'소나기',82:'강한 소나기',95:'뇌우',96:'우박 가능 뇌우',99:'강한 우박 뇌우'};
+
+const garments = [
+{name:'반팔 티셔츠',slot:'top',clo:0.08,windproof:0,water_resistant:0,moodTags:['comfy','light','practical'],vibe:1.0,polish:0.3,koreanFreq:1.0,layersWith:['cardigan','windbreaker','field-jacket','trench','wool-coat'],desc:'더운 날 기본 이너로 가장 무난합니다.',code:'short-tee'},
+{name:'긴팔 티셔츠',slot:'top',clo:0.15,windproof:0,water_resistant:0,moodTags:['comfy','kkuan','practical','light'],vibe:0.95,polish:0.4,koreanFreq:1.0,layersWith:['cardigan','windbreaker','field-jacket','basic-jacket','wool-coat'],desc:'선선한 날 가볍게 입기 좋은 기본 상의입니다.',code:'long-tee'},
+{name:'셔츠',slot:'top',clo:0.18,windproof:0,water_resistant:0,moodTags:['polished','kkuan'],vibe:0.95,polish:0.95,koreanFreq:0.95,layersWith:['cardigan','basic-jacket','trench','wool-coat','field-jacket'],desc:'단정한 느낌을 만들기 좋은 베이스 레이어입니다.',code:'shirt'},
+{name:'니트',slot:'mid',clo:0.28,windproof:0,water_resistant:0,moodTags:['polished','kkuan'],vibe:1.0,polish:0.9,koreanFreq:0.95,layersWith:['wool-coat','trench','basic-jacket'],desc:'가을·겨울에 가장 자연스럽게 쓰기 좋은 보온 레이어입니다.',code:'knit'},
+{name:'맨투맨',slot:'mid',clo:0.24,windproof:0,water_resistant:0,moodTags:['comfy','practical'],vibe:0.95,polish:0.45,koreanFreq:1.0,layersWith:['windbreaker','field-jacket','wool-coat'],desc:'편하게 입기 좋고 활용도가 높은 중간 레이어입니다.',code:'sweatshirt'},
+{name:'가디건',slot:'mid',clo:0.22,windproof:0,water_resistant:0,moodTags:['polished','kkuan','light'],vibe:1.05,polish:0.95,koreanFreq:0.98,layersWith:['shirt','short-tee','long-tee','wool-coat','trench','basic-jacket'],desc:'실내외 온도차 대응에 좋은 얇은 레이어입니다.',code:'cardigan'},
+{name:'후리스',slot:'mid',clo:0.34,windproof:0.1,water_resistant:0,moodTags:['comfy','practical'],vibe:0.85,polish:0.25,koreanFreq:0.9,layersWith:['windbreaker','field-jacket','wool-coat'],desc:'따뜻하고 편안한 실용 레이어입니다.',code:'fleece'},
+{name:'블레이저/기본 자켓',slot:'outer',clo:0.26,windproof:0.3,water_resistant:0.05,moodTags:['polished','kkuan'],vibe:1.05,polish:1.0,koreanFreq:1.0,layersWith:['shirt','knit','long-tee'],desc:'봄·가을에 가장 자연스럽고 단정한 아우터입니다.',code:'basic-jacket'},
+{name:'바람막이',slot:'outer',clo:0.16,windproof:0.95,water_resistant:0.45,moodTags:['practical','comfy','light'],vibe:0.88,polish:0.3,koreanFreq:0.98,layersWith:['short-tee','long-tee','sweatshirt','fleece'],desc:'바람과 약한 비에 강한 경량 아우터입니다.',code:'windbreaker'},
+{name:'야상/필드자켓',slot:'outer',clo:0.30,windproof:0.65,water_resistant:0.25,moodTags:['kkuan','practical','comfy'],vibe:1.0,polish:0.65,koreanFreq:0.9,layersWith:['shirt','long-tee','sweatshirt','knit'],desc:'실용성과 분위기를 둘 다 챙기기 좋은 간절기 아우터입니다.',code:'field-jacket'},
+{name:'트렌치코트',slot:'outer',clo:0.24,windproof:0.45,water_resistant:0.35,moodTags:['polished','kkuan'],vibe:1.05,polish:1.0,koreanFreq:0.85,layersWith:['shirt','cardigan','knit'],desc:'꾸민 느낌을 내기 좋은 대표 간절기 코트입니다.',code:'trench'},
+{name:'울코트',slot:'outer',clo:0.40,windproof:0.55,water_resistant:0.1,moodTags:['polished','kkuan'],vibe:1.05,polish:1.0,koreanFreq:0.95,layersWith:['shirt','knit','cardigan','long-tee'],desc:'겨울 초입과 한겨울 전후에 가장 무난한 코트입니다.',code:'wool-coat'},
+{name:'패딩',slot:'outer',clo:0.70,windproof:0.95,water_resistant:0.35,moodTags:['practical','comfy'],vibe:0.9,polish:0.35,koreanFreq:1.0,layersWith:['long-tee','knit','sweatshirt','fleece'],desc:'한겨울용 강한 보온 아우터입니다.',code:'padding'},
+{name:'반바지',slot:'bottom',clo:0.02,windproof:0,water_resistant:0,moodTags:['comfy','light'],vibe:0.95,polish:0.2,koreanFreq:0.9,layersWith:[],desc:'더운 날 시원하게 입는 하의입니다.',code:'shorts'},
+{name:'청바지',slot:'bottom',clo:0.16,windproof:0.12,water_resistant:0,moodTags:['comfy','kkuan','practical'],vibe:1.0,polish:0.55,koreanFreq:1.0,layersWith:[],desc:'가장 무난하고 범용적인 기본 하의입니다.',code:'jeans'},
+{name:'와이드 팬츠',slot:'bottom',clo:0.15,windproof:0.08,water_resistant:0,moodTags:['kkuan','light','comfy'],vibe:1.02,polish:0.72,koreanFreq:0.95,layersWith:[],desc:'요즘 일상복에서 자주 보이는 편안한 실루엣의 하의입니다.',code:'wide-pants'},
+{name:'면바지',slot:'bottom',clo:0.17,windproof:0.10,water_resistant:0,moodTags:['polished','practical','kkuan'],vibe:1.0,polish:0.8,koreanFreq:0.92,layersWith:[],desc:'너무 격식적이지 않으면서 깔끔한 하의입니다.',code:'cotton-pants'},
+{name:'슬랙스',slot:'bottom',clo:0.18,windproof:0.10,water_resistant:0,moodTags:['polished','kkuan'],vibe:1.0,polish:1.0,koreanFreq:0.98,layersWith:[],desc:'단정한 스타일을 만들기 쉬운 하의입니다.',code:'slacks'},
+{name:'조거 팬츠',slot:'bottom',clo:0.19,windproof:0.10,water_resistant:0,moodTags:['comfy','practical'],vibe:0.92,polish:0.32,koreanFreq:0.86,layersWith:[],desc:'편하게 움직이기 좋은 캐주얼 하의입니다.',code:'jogger'},
+{name:'기모 팬츠',slot:'bottom',clo:0.26,windproof:0.15,water_resistant:0,moodTags:['practical','comfy'],vibe:0.9,polish:0.4,koreanFreq:0.88,layersWith:[],desc:'겨울철 하체 보온을 보완하는 하의입니다.',code:'warm-pants'},
+{name:'운동화',slot:'shoes',clo:0.02,windproof:0.05,water_resistant:0,moodTags:['comfy','practical','light'],vibe:1.0,polish:0.45,koreanFreq:1.0,layersWith:[],desc:'가장 범용적인 신발입니다.',code:'sneakers'},
+{name:'로퍼/단화',slot:'shoes',clo:0.01,windproof:0.05,water_resistant:0,moodTags:['polished','kkuan'],vibe:1.0,polish:0.95,koreanFreq:0.9,layersWith:[],desc:'단정한 스타일에 잘 어울리는 신발입니다.',code:'loafers'},
+{name:'방수 신발',slot:'shoes',clo:0.03,windproof:0.15,water_resistant:0.95,moodTags:['practical'],vibe:0.85,polish:0.35,koreanFreq:0.72,layersWith:[],desc:'비 오는 날 발 젖음을 줄이는 신발입니다.',code:'water-shoes'},
+{name:'우산',slot:'acc',clo:0,windproof:0.1,water_resistant:1.0,moodTags:['polished','kkuan','comfy','practical','light'],vibe:1.0,polish:0.5,koreanFreq:1.0,layersWith:[],desc:'비 예보가 있으면 가장 먼저 챙길 소품입니다.',code:'umbrella'},
+{name:'머플러',slot:'acc',clo:0.10,windproof:0.45,water_resistant:0,moodTags:['polished','kkuan'],vibe:1.0,polish:0.85,koreanFreq:0.9,layersWith:[],desc:'추운 날 체감온도를 낮추는 목 보온 소품입니다.',code:'muffler'},
+{name:'얇은 겉옷 휴대',slot:'acc',clo:0.14,windproof:0.2,water_resistant:0,moodTags:['practical','light','kkuan'],vibe:0.95,polish:0.8,koreanFreq:0.8,layersWith:[],desc:'낮밤 기온차에 대비하는 보조 아이템입니다.',code:'carry-layer'},
+{name:'모자/캡',slot:'acc',clo:0.02,windproof:0.08,water_resistant:0.1,moodTags:['comfy','practical'],vibe:0.9,polish:0.3,koreanFreq:0.85,layersWith:[],desc:'햇빛이나 약한 비 대응용 소품입니다.',code:'cap'}
+];
+
+function getFeedbackBias(){const raw=localStorage.getItem(FEEDBACK_KEY);const bias=Number(raw);if(Number.isNaN(bias)) return 0; return Math.max(-0.24,Math.min(0.24,bias));}
+function getFeedbackLabel(){return localStorage.getItem(FEEDBACK_LABEL_KEY)||'아직 없음';}
+function setFeedback(type){let bias=getFeedbackBias(); if(type==='good') bias=bias*0.8; if(type==='cold') bias+=0.04; if(type==='hot') bias-=0.04; bias=Math.max(-0.24,Math.min(0.24,Number(bias.toFixed(2)))); localStorage.setItem(FEEDBACK_KEY,String(bias)); localStorage.setItem(FEEDBACK_LABEL_KEY,type); updateFeedbackUI(); if(selectedPoint) updateWeatherForPoint(selectedPoint.lat,selectedPoint.lon,selectedPoint.label);}
+function updateFeedbackUI(){const label=getFeedbackLabel(); [goodBtn,coldBtnFeedback,hotBtn].forEach(btn=>btn.classList.remove('active')); if(label==='good') goodBtn.classList.add('active'); if(label==='cold') coldBtnFeedback.classList.add('active'); if(label==='hot') hotBtn.classList.add('active'); const bias=getFeedbackBias(); let desc='피드백을 남기면 다음 추천에서 보온량이 조금씩 보정됩니다.'; if(label==='good') desc='최근 피드백: 딱 좋아요 · 현재 보정값 '+(bias>=0?'+':'')+bias.toFixed(2)+' clo'; if(label==='cold') desc='최근 피드백: 조금 추웠어요 · 다음 추천을 더 따뜻하게 보정 중 ('+(bias>=0?'+':'')+bias.toFixed(2)+' clo)'; if(label==='hot') desc='최근 피드백: 조금 더웠어요 · 다음 추천을 더 가볍게 보정 중 ('+(bias>=0?'+':'')+bias.toFixed(2)+' clo)'; feedbackNote.textContent=desc;}
+function setStatus(msg){statusBox.textContent=msg;}
+function sliderLabel(el,map){return map[Number(el.value)];}
+function moodLabel(v){const map={polished:'깔끔하게',comfy:'편하게',kkuan:'꾸안꾸',practical:'최대한 실용적으로',light:'최대한 가볍게'}; return map[v]||v;}
+function updatePreferenceLabels(){coldVal.textContent=sliderLabel(coldSlider,{'-2':'더위 잘 탐','-1':'약간 더위 탐','0':'보통','1':'약간 추위 탐','2':'추위 많이 탐'}); rainVal.textContent=sliderLabel(rainSlider,{'0':'가볍게 봄','1':'보통','2':'철저히 대비'}); windVal.textContent=sliderLabel(windSlider,{'0':'둔감','1':'보통','2':'민감'}); fashionVal.textContent=sliderLabel(fashionSlider,{'0':'실용성 우선','1':'보통','2':'스타일 중시'}); indoorTempVal.textContent=`${indoorTemp.value}°C`; renderChips(); if(weatherSnapshot) recommendOutfit(weatherSnapshot);}
+function renderChips(){const chips=[]; if(selectedPoint) chips.push(`<span class="chip">${selectedPoint.label||'선택 위치'}</span>`); else chips.push('<span class="chip">위치 미선택</span>'); chips.push(`<span class="chip">추위 민감도: ${coldVal.textContent}</span>`); chips.push(`<span class="chip">비 대비: ${rainVal.textContent}</span>`); chips.push(`<span class="chip">바람 민감도: ${windVal.textContent}</span>`); chips.push(`<span class="chip">오늘 느낌: ${moodLabel(moodSelect.value)}</span>`); chips.push(`<span class="chip">스타일 중시도: ${fashionVal.textContent}</span>`); chips.push(`<span class="chip">환경: ${envSelect.options[envSelect.selectedIndex].text}</span>`); chips.push(`<span class="chip">실내 온도: ${indoorTemp.value}°C</span>`); chips.push(`<span class="chip">시간: ${startTimeSelect.options[startTimeSelect.selectedIndex].text} ~ ${endTimeSelect.options[endTimeSelect.selectedIndex].text}</span>`); chips.push(`<span class="chip">기준: ${rangeStrategy.options[rangeStrategy.selectedIndex].text}</span>`); chips.push(`<span class="chip">피드백 보정: ${(getFeedbackBias()>=0?'+':'')+getFeedbackBias().toFixed(2)} clo</span>`); activeChips.innerHTML=chips.join('');}
+function setMarker(lat,lon,label){ if(marker) map.removeLayer(marker); marker=L.marker([lat,lon]).addTo(map); if(label) marker.bindPopup(label).openPopup(); map.setView([lat,lon],10); latInput.value=Number(lat).toFixed(4); lonInput.value=Number(lon).toFixed(4); selectedPoint={lat,lon,label}; renderChips(); }
+async function geocodeCity(query){const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=ko&format=json`; const res=await fetch(url); if(!res.ok) throw new Error('도시 검색 실패'); const data=await res.json(); if(!data.results||!data.results.length) throw new Error('검색 결과 없음'); return data.results[0];}
+async function geocodePostal(postal,country){const url=`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(postal)}&countrycodes=${encodeURIComponent(country.toLowerCase())}&format=jsonv2&limit=1`; const res=await fetch(url,{headers:{'Accept':'application/json'}}); if(!res.ok) throw new Error('우편번호 검색 실패'); const data=await res.json(); if(!data||!data.length) throw new Error('해당 우편번호 결과 없음'); return data[0];}
+async function fetchWeather(lat,lon){const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&current=temperature_2m,apparent_temperature,precipitation_probability,weather_code,wind_speed_10m&timezone=auto&forecast_days=3`; const res=await fetch(url); if(!res.ok) throw new Error('날씨 조회 실패'); return res.json();}
+function pickHourlyIndex(times,offsetHours){ if(!times||!times.length) return 0; const now=new Date(); const target=new Date(now.getTime()+offsetHours*3600*1000); let bestIdx=0,bestDiff=Infinity; times.forEach((t,i)=>{const diff=Math.abs(new Date(t).getTime()-target.getTime()); if(diff<bestDiff){bestDiff=diff; bestIdx=i;}}); return bestIdx; }
+function summarizeRange(hourly,startOffset,endOffset){const startIdx=pickHourlyIndex(hourly.time,startOffset), endIdx=pickHourlyIndex(hourly.time,endOffset), from=Math.min(startIdx,endIdx), to=Math.max(startIdx,endIdx); const temps=hourly.temperature_2m.slice(from,to+1), feels=hourly.apparent_temperature.slice(from,to+1), rains=hourly.precipitation_probability.slice(from,to+1).map(v=>v??0), winds=hourly.wind_speed_10m.slice(from,to+1), codes=hourly.weather_code.slice(from,to+1), times=hourly.time.slice(from,to+1), avg=arr=>arr.reduce((a,b)=>a+b,0)/arr.length; return {minTemp:Math.min(...temps),maxTemp:Math.max(...temps),minFeel:Math.min(...feels),maxFeel:Math.max(...feels),avgFeel:avg(feels),maxRainProb:Math.max(...rains),avgRainProb:avg(rains),maxWind:Math.max(...winds),avgWind:avg(winds),dominantCode:codes[Math.floor(codes.length/2)],timeText:`${times[0]} ~ ${times[times.length-1]}`,startTimeText:times[0],endTimeText:times[times.length-1]};}
+function weatherLabel(code){return weatherCodeMap[code]||`코드 ${code}`;}
+function showWeather(snapshot){weatherPanel.style.display='block'; document.getElementById('tempBox').textContent=`${Math.round(snapshot.minTemp)}~${Math.round(snapshot.maxTemp)}°C`; document.getElementById('feelBox').textContent=`${Math.round(snapshot.minFeel)}~${Math.round(snapshot.maxFeel)}°C`; document.getElementById('rainBox').textContent=`${Math.round(snapshot.maxRainProb)}%`; document.getElementById('windBox').textContent=`${Math.round(snapshot.maxWind)} km/h`; document.getElementById('codeBox').textContent=weatherLabel(snapshot.dominantCode); document.getElementById('timeBox').textContent=snapshot.timeText;}
+function computeNeed(snapshot){const coldPref=Number(coldSlider.value), rainPref=Number(rainSlider.value), windPref=Number(windSlider.value), env=envSelect.value, indoor=Number(indoorTemp.value), strategy=rangeStrategy.value, feedbackBias=getFeedbackBias(); let outdoorFeel; if(strategy==='cautious') outdoorFeel=snapshot.minFeel; else if(strategy==='light') outdoorFeel=snapshot.maxFeel; else outdoorFeel=snapshot.avgFeel; let effectiveFeel=outdoorFeel; if(env==='indoor') effectiveFeel=indoor; else if(env==='mixed') effectiveFeel=outdoorFeel*0.58+indoor*0.42; let neededClo; if(effectiveFeel>=28) neededClo=0.10; else if(effectiveFeel>=24) neededClo=0.18; else if(effectiveFeel>=21) neededClo=0.28; else if(effectiveFeel>=18) neededClo=0.38; else if(effectiveFeel>=15) neededClo=0.52; else if(effectiveFeel>=12) neededClo=0.68; else if(effectiveFeel>=9) neededClo=0.85; else if(effectiveFeel>=5) neededClo=1.02; else if(effectiveFeel>=0) neededClo=1.20; else neededClo=1.38; neededClo+=coldPref*0.08; neededClo+=feedbackBias; if(env!=='indoor'){ if(snapshot.maxWind>=20) neededClo+=0.05+windPref*0.03; if(snapshot.maxWind>=32) neededClo+=0.07; } let rainNeed=0; if(env!=='indoor'){ if(snapshot.maxRainProb>=70) rainNeed=1.0; else if(snapshot.maxRainProb>=45) rainNeed=0.65; else if(snapshot.maxRainProb>=25) rainNeed=0.35; rainNeed+=rainPref*0.12; } let windNeed=0; if(env!=='indoor'){ if(snapshot.maxWind>=32) windNeed=1.0; else if(snapshot.maxWind>=22) windNeed=0.65; else if(snapshot.maxWind>=12) windNeed=0.35; windNeed+=windPref*0.10; } const tempGap=snapshot.maxFeel-snapshot.minFeel; return {neededClo:Math.max(0.08,Number(neededClo.toFixed(2))),rainNeed:Math.min(1.2,Number(rainNeed.toFixed(2))),windNeed:Math.min(1.2,Number(windNeed.toFixed(2))),effectiveFeel,env,indoor,outdoorFeel,tempGap};}
+function moodBoost(item,mood){ if(item.moodTags.includes(mood)) return 1.5; if(mood==='kkuan'&&item.moodTags.includes('polished')) return 0.9; if(mood==='practical'&&item.moodTags.includes('comfy')) return 0.6; return 0;}
+function fashionWeight(){const v=Number(fashionSlider.value); if(v===0) return 0.45; if(v===2) return 1.25; return 0.8;}
+function getCandidates(slot){return garments.filter(item=>item.slot===slot);}
+function scoreItem(item,context,targetClo,role){const mood=moodSelect.value, fashionW=fashionWeight(); let cloFit=0; if(role==='top'){const ideal=Math.min(0.22,targetClo*0.28+0.05); cloFit=3.8-Math.abs(item.clo-ideal)*15;} else if(role==='mid'){const ideal=Math.max(0,Math.min(0.35,targetClo*0.24)); cloFit=4.0-Math.abs(item.clo-ideal)*12;} else if(role==='outer'){const ideal=Math.max(0.12,Math.min(0.75,targetClo*0.48+context.windNeed*0.12+context.rainNeed*0.04)); cloFit=5.0-Math.abs(item.clo-ideal)*8;} else if(role==='bottom'){const ideal=Math.min(0.28,Math.max(0.04,targetClo*0.18)); cloFit=3.2-Math.abs(item.clo-ideal)*12;} else if(role==='shoes'){cloFit=2.0-Math.abs(item.clo-0.02)*18;} else {cloFit=1.5;} let practical=0; practical+=item.windproof*context.windNeed*2.8; practical+=item.water_resistant*context.rainNeed*2.8; practical+=item.koreanFreq*1.3; practical+=moodBoost(item,mood); practical+=(item.vibe+item.polish)*0.35*fashionW; if(context.env==='indoor'&&item.slot==='outer') practical-=1.1; if(context.env==='indoor'&&item.code==='umbrella') practical-=2.4; if(mood==='light'&&['padding','field-jacket','wool-coat','warm-pants'].includes(item.code)) practical-=0.8; if(mood==='comfy'&&['loafers','trench','slacks'].includes(item.code)) practical-=0.35; if(mood==='polished'&&['jogger','windbreaker'].includes(item.code)) practical-=0.8; if(mood==='practical'&&['trench','loafers'].includes(item.code)) practical-=0.4; if(context.effectiveFeel>=25&&['padding','wool-coat','muffler','warm-pants'].includes(item.code)) practical-=4.0; if(context.effectiveFeel<=7&&['short-tee','shorts'].includes(item.code)) practical-=4.4; if(context.tempGap>=7&&['cardigan','carry-layer'].includes(item.code)) practical+=1.0; if(context.rainNeed>=0.8&&item.code==='umbrella') practical+=2.4; if(context.rainNeed>=0.65&&item.code==='water-shoes') practical+=1.5; if(context.windNeed>=0.7&&item.code==='windbreaker') practical+=2.0; if(context.windNeed>=0.6&&item.code==='muffler') practical+=1.0; return cloFit+practical;}
+function chooseTopLayer(context){return getCandidates('top').map(item=>({...item,score:scoreItem(item,context,context.neededClo,'top')})).sort((a,b)=>b.score-a.score)[0];}
+function chooseMidLayer(context,topItem){ if(context.neededClo<0.45&&context.tempGap<6&&context.effectiveFeel>=18) return null; const midItems=getCandidates('mid').filter(item=>item.layersWith.includes(topItem.code)||['cardigan','fleece','sweatshirt','knit'].includes(item.code)); const best=midItems.map(item=>{let score=scoreItem(item,context,context.neededClo,'mid'); if(topItem.code==='shirt'&&['cardigan','knit'].includes(item.code)) score+=0.8; if(topItem.code==='short-tee'&&item.code==='knit') score-=0.4; if(context.effectiveFeel>=22&&['knit','fleece'].includes(item.code)) score-=1.6; return {...item,score};}).sort((a,b)=>b.score-a.score)[0]; if(!best||best.score<1.6) return null; return best;}
+function chooseOuterLayer(context,topItem,midItem){ if(context.effectiveFeel>=25&&context.windNeed<0.35&&context.rainNeed<0.25&&context.tempGap<6) return null; const best=getCandidates('outer').filter(item=>{const okWithTop=item.layersWith.includes(topItem.code); const okWithMid=!midItem||item.layersWith.includes(midItem.code)||['wool-coat','padding','field-jacket','windbreaker'].includes(item.code); return okWithTop&&okWithMid;}).map(item=>{let score=scoreItem(item,context,context.neededClo,'outer'); if(context.windNeed>=0.7&&item.code==='windbreaker') score+=1.2; if(context.rainNeed>=0.55&&['windbreaker','trench'].includes(item.code)) score+=0.8; if(context.effectiveFeel<=8&&item.code==='padding') score+=1.8; if(context.effectiveFeel<=13&&item.code==='wool-coat') score+=1.0; if(context.effectiveFeel>=19&&item.code==='padding') score-=4.2; if(context.effectiveFeel>=22&&['wool-coat','field-jacket'].includes(item.code)) score-=1.5; return {...item,score};}).sort((a,b)=>b.score-a.score)[0]; if(!best||best.score<1.2) return null; return best;}
+function chooseBottom(context){ const mood=moodSelect.value; return getCandidates('bottom').map(item=>{let score=scoreItem(item,context,context.neededClo,'bottom'); if(context.effectiveFeel>=24&&item.code==='shorts') score+=1.2; if(context.effectiveFeel<=10&&item.code==='warm-pants') score+=1.1; if(mood==='polished'&&item.code==='slacks') score+=1.2; if(mood==='kkuan'&&['wide-pants','jeans','cotton-pants'].includes(item.code)) score+=0.8; if(mood==='comfy'&&['jogger','wide-pants','jeans'].includes(item.code)) score+=0.8; if(mood==='practical'&&['jeans','cotton-pants'].includes(item.code)) score+=0.7; if(mood==='light'&&['wide-pants','shorts'].includes(item.code)) score+=0.8; return {...item,score};}).sort((a,b)=>b.score-a.score)[0];}
+function chooseShoes(context){ const mood=moodSelect.value; return getCandidates('shoes').map(item=>{let score=scoreItem(item,context,context.neededClo,'shoes'); if(context.rainNeed>=0.65&&item.code==='water-shoes') score+=1.7; if(mood==='polished'&&item.code==='loafers') score+=0.9; if(mood==='comfy'&&item.code==='sneakers') score+=0.8; if(mood==='practical'&&item.code==='sneakers') score+=0.7; return {...item,score};}).sort((a,b)=>b.score-a.score)[0];}
+function chooseAccessories(context){ const items=[]; if(context.rainNeed>=0.45) items.push(garments.find(x=>x.code==='umbrella')); if(context.effectiveFeel<=8||context.windNeed>=0.75) items.push(garments.find(x=>x.code==='muffler')); if(context.tempGap>=7&&context.effectiveFeel>=14) items.push(garments.find(x=>x.code==='carry-layer')); if(context.effectiveFeel>=20&&context.rainNeed<0.55&&context.windNeed<0.7&&moodSelect.value!=='polished') items.push(garments.find(x=>x.code==='cap')); return items.filter(Boolean).slice(0,2);}
+function buildOutfit(context){const top=chooseTopLayer(context), mid=chooseMidLayer(context,top), outer=chooseOuterLayer(context,top,mid), bottom=chooseBottom(context), shoes=chooseShoes(context), accessories=chooseAccessories(context); const mainItems=[top,mid,outer,bottom,shoes].filter(Boolean); const totalClo=mainItems.reduce((sum,item)=>sum+item.clo,0)+accessories.reduce((sum,item)=>sum+item.clo,0); return {top,mid,outer,bottom,shoes,accessories,totalClo:Number(totalClo.toFixed(2))};}
+function slotLabel(slot){const labels={top:'상의',mid:'중간 레이어',outer:'아우터',bottom:'하의',shoes:'신발',acc:'소품'}; return labels[slot]||slot;}
+function getReasonBadges(item,context){const badges=[]; if(item.clo>=0.3) badges.push('보온 적합'); if(item.windproof>=0.5&&context.windNeed>=0.45) badges.push('바람 대응'); if(item.water_resistant>=0.4&&context.rainNeed>=0.45) badges.push('비 대응'); if(item.moodTags.includes(moodSelect.value)) badges.push('오늘 느낌에 어울림'); if(item.slot==='bottom'&&['wide-pants','jeans','slacks','cotton-pants','jogger'].includes(item.code)) badges.push('자주 입는 하의'); if(item.slot==='outer'&&['basic-jacket','field-jacket','trench','wool-coat'].includes(item.code)) badges.push('실용적 코디'); return badges.slice(0,3);}
+function renderOutfit(outfit,context){const items=[outfit.top,outfit.mid,outfit.outer,outfit.bottom,outfit.shoes,...outfit.accessories].filter(Boolean); outfitList.innerHTML=items.map(item=>{const scoreDisplay=item.score?item.score.toFixed(1):item.clo.toFixed(2); const sub=item.slot==='acc'?`${item.desc}`:`${item.desc} · clo ${item.clo.toFixed(2)}`; const badges=getReasonBadges(item,context).map(b=>`<span class="reason-badge">${b}</span>`).join(''); return `<div class="outfit-item"><div class="left"><div class="badge">${slotLabel(item.slot)}</div><div class="name">${item.name}</div><div class="desc">${sub}</div><div class="reason-badges">${badges}</div></div><div class="score">${scoreDisplay}</div></div>`;}).join(''); document.getElementById('neededCloBox').textContent=`${context.neededClo.toFixed(2)} clo`; document.getElementById('outfitCloBox').textContent=`${outfit.totalClo.toFixed(2)} clo`; document.getElementById('rainNeedBox').textContent=context.rainNeed>=0.8?'높음':context.rainNeed>=0.45?'중간':'낮음'; document.getElementById('windNeedBox').textContent=context.windNeed>=0.8?'높음':context.windNeed>=0.45?'중간':'낮음';}
+function buildExplanation(outfit,context){const parts=[]; parts.push(`선택한 시간대의 대표 체감온도는 약 <strong>${Math.round(context.effectiveFeel)}°C</strong>로 계산되어 필요한 보온량을 <strong>${context.neededClo.toFixed(2)} clo</strong> 정도로 보았습니다.`); parts.push(`추천된 조합의 총 보온량은 <strong>${outfit.totalClo.toFixed(2)} clo</strong>이며, 현재 선택한 <strong>${moodLabel(moodSelect.value)}</strong> 느낌을 함께 반영했습니다.`); if(context.windNeed>=0.6) parts.push(`풍속이 강한 편이라 <strong>바람막이·야상·패딩처럼 방풍성이 있는 아우터</strong>를 더 우대했습니다.`); if(context.rainNeed>=0.45) parts.push(`강수 가능성이 있어 <strong>우산</strong>이나 <strong>방수 신발</strong> 같은 실용 요소를 함께 고려했습니다.`); if(context.tempGap>=7) parts.push(`시간대별 기온차가 커서 <strong>가디건</strong>이나 <strong>얇은 겉옷 휴대</strong>처럼 벗고 입기 쉬운 구성을 선호하도록 했습니다.`); const feedbackBias=getFeedbackBias(); if(feedbackBias!==0) parts.push(`이전 피드백을 반영해 추천 보온량을 <strong>${feedbackBias>=0?'+':''}${feedbackBias.toFixed(2)} clo</strong>만큼 보정했습니다.`); explainBox.innerHTML=parts.join('<br><br>');}
+function renderCandidates(context){const mood=moodSelect.value, fashionW=fashionWeight(); const candidates=garments.filter(item=>['top','mid','outer','bottom'].includes(item.slot)).map(item=>{const score=(2.8-Math.abs(item.clo-Math.min(context.neededClo,0.45))*4)+item.windproof*context.windNeed*1.4+item.water_resistant*context.rainNeed*1.4+moodBoost(item,mood)+(item.vibe+item.polish)*0.22*fashionW; return {item,score};}).sort((a,b)=>b.score-a.score).slice(0,10); candidateChips.innerHTML=candidates.map(({item})=>`<span class="chip">${item.name}</span>`).join('');}
+function recommendOutfit(snapshot){const context=computeNeed(snapshot), outfit=buildOutfit(context); renderOutfit(outfit,context); buildExplanation(outfit,context); renderCandidates(context); updateFeedbackUI();}
+async function updateWeatherForPoint(lat,lon,label='선택 위치'){ try{ setStatus('날씨 데이터를 불러오는 중입니다...'); setMarker(lat,lon,label); const data=await fetchWeather(lat,lon); const startOffset=Number(startTimeSelect.value), endOffsetRaw=Number(endTimeSelect.value), endOffset=Math.max(endOffsetRaw,startOffset+1); const snapshot=summarizeRange(data.hourly,startOffset,endOffset); weatherSnapshot=snapshot; showWeather(snapshot); recommendOutfit(snapshot); setStatus(`날씨 조회 완료: ${label}`);} catch(err){ console.error(err); setStatus(`오류: ${err.message}`);} }
+map.on('click',(e)=>{const {lat,lng}=e.latlng; updateWeatherForPoint(lat,lng,`위도 ${lat.toFixed(3)}, 경도 ${lng.toFixed(3)}`);});
+searchBtn.addEventListener('click',async()=>{const q=locationInput.value.trim(); if(!q){setStatus('도시명을 입력해 주세요.'); return;} try{setStatus('도시를 검색하는 중입니다...'); const place=await geocodeCity(q); const label=`${place.name}${place.admin1?', '+place.admin1:''}${place.country?', '+place.country:''}`; updateWeatherForPoint(place.latitude,place.longitude,label);} catch(err){console.error(err); setStatus(`오류: ${err.message}`);}});
+postalBtn.addEventListener('click',async()=>{const postal=postalInput.value.trim(), country=(countryInput.value.trim()||'KR'); if(!postal){setStatus('우편번호를 입력해 주세요.'); return;} try{setStatus('우편번호를 검색하는 중입니다...'); const place=await geocodePostal(postal,country); const lat=Number(place.lat), lon=Number(place.lon), label=`${place.display_name}`; updateWeatherForPoint(lat,lon,label);} catch(err){console.error(err); setStatus(`오류: ${err.message}`);}});
+coordBtn.addEventListener('click',()=>{const lat=Number(latInput.value.trim()), lon=Number(lonInput.value.trim()); if(Number.isNaN(lat)||Number.isNaN(lon)){setStatus('올바른 위도와 경도를 입력해 주세요.'); return;} updateWeatherForPoint(lat,lon,`직접 입력 좌표 (${lat.toFixed(3)}, ${lon.toFixed(3)})`);});
+seoulBtn.addEventListener('click',()=>{locationInput.value='Seoul'; updateWeatherForPoint(37.5665,126.9780,'Seoul, KR');});
+locationInput.addEventListener('keydown',(e)=>{if(e.key==='Enter') searchBtn.click();}); postalInput.addEventListener('keydown',(e)=>{if(e.key==='Enter') postalBtn.click();}); latInput.addEventListener('keydown',(e)=>{if(e.key==='Enter') coordBtn.click();}); lonInput.addEventListener('keydown',(e)=>{if(e.key==='Enter') coordBtn.click();});
+gpsBtn.addEventListener('click',()=>{if(!navigator.geolocation){setStatus('이 브라우저에서는 위치 기능을 사용할 수 없습니다.'); return;} setStatus('현재 위치를 확인하는 중입니다...'); navigator.geolocation.getCurrentPosition((pos)=>{updateWeatherForPoint(pos.coords.latitude,pos.coords.longitude,'내 위치');},(err)=>{setStatus(`위치 권한 또는 조회 오류: ${err.message}`);},{enableHighAccuracy:true,timeout:10000});});
+refreshBtn.addEventListener('click',()=>{if(!selectedPoint){setStatus('먼저 위치를 선택해 주세요.'); return;} updateWeatherForPoint(selectedPoint.lat,selectedPoint.lon,selectedPoint.label);});
+goodBtn.addEventListener('click',()=>setFeedback('good')); coldBtnFeedback.addEventListener('click',()=>setFeedback('cold')); hotBtn.addEventListener('click',()=>setFeedback('hot'));
+[startTimeSelect,endTimeSelect,moodSelect,rangeStrategy,coldSlider,rainSlider,windSlider,envSelect,indoorTemp,fashionSlider].forEach(el=>{el.addEventListener('input',()=>{updatePreferenceLabels(); if(selectedPoint) updateWeatherForPoint(selectedPoint.lat,selectedPoint.lon,selectedPoint.label);}); el.addEventListener('change',()=>{updatePreferenceLabels(); if(selectedPoint) updateWeatherForPoint(selectedPoint.lat,selectedPoint.lon,selectedPoint.label);});});
+updatePreferenceLabels(); updateFeedbackUI(); renderChips();
+</script>
+</body>
+</html>
